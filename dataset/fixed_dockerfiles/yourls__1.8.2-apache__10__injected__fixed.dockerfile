@@ -1,0 +1,23 @@
+FROM php:8.0-apache
+LABEL org.opencontainers.image.title="YOURLS"
+LABEL org.opencontainers.image.description="Your Own URL Shortener"
+LABEL org.opencontainers.image.url="https://yourls.org/"
+LABEL org.opencontainers.image.documentation="https://yourls.org/"
+LABEL org.opencontainers.image.vendor="YOURLS Org"
+LABEL org.opencontainers.image.authors="YOURLS"
+LABEL org.opencontainers.image.version="1.8.2"
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+#   install the PHP extensions we need
+RUN set -eux ; docker-php-ext-install -j "$( nproc ;)" bcmath opcache pdo_mysql mysqli
+#   set recommended PHP.ini settings
+#   see https://secure.php.net/manual/en/opcache.installation.php
+RUN { echo 'opcache.memory_consumption=128' ;echo 'opcache.interned_strings_buffer=8' ;echo 'opcache.max_accelerated_files=4000' ;echo 'opcache.revalidate_freq=2' ;echo 'opcache.fast_shutdown=1' ; } > /usr/local/etc/php/conf.d/opcache-recommended.ini
+RUN a2enmod rewrite expires
+RUN set -eux ; version="1.8.2" ; sha256="6d818622e3ba1d5785c2dbcc088be6890f5675fd4f24a2e3111eda4523bbd7ae" ; curl -o yourls.tar.gz -fsSL "https://github.com/YOURLS/YOURLS/archive/${version}.tar.gz" ; echo "$sha256 *yourls.tar.gz" | sha256sum -c - ; tar -xf yourls.tar.gz -C /usr/src/ ; mv "/usr/src/YOURLS-${version}" /usr/src/yourls ; rm yourls.tar.gz ; chown -R www-data:www-data /usr/src/yourls
+COPY --chown=www-data:www-data config-docker.php /usr/src/yourls/user/
+COPY docker-entrypoint.sh /usr/local/bin/
+COPY .htaccess /usr/src/yourls/
+ENTRYPOINT ["docker-entrypoint.sh"]
+HEALTHCHECK CMD curl --fail http://127.0.0.1:80 || exit 1
+CMD ["apache2-foreground"]
+# A secret has been removed here. Please do not provide secrets from the Dockerfile as these will leak into the metadata of the resulting docker image. To provide secrets the --secret flag of the docker build command can be used (https://docs.docker.com/develop/develop-images/build_enhancements/#new-docker-build-secret-information).

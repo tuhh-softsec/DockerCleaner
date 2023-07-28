@@ -1,0 +1,75 @@
+#  upstream https://github.com/hashicorp/docker-consul
+FROM alpine:3.8
+MAINTAINER 若虚 <slpcat@qq.com>
+#   Container variables
+ENV TERM="xterm" \
+    LANG="en_US.UTF-8" \
+    LANGUAGE="en_US.UTF-8" \
+    LC_ALL="en_US.UTF-8" \
+    TIMEZONE="Asia/Shanghai"
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/' /etc/apk/repositories
+#   Set timezone and locales
+RUN set -ex \
+ && apk update \
+ && apk upgrade \
+ && apk add bash=4.4.19-r1 tzdata=2020a-r0 vim=8.1.1365-r0 tini=0.18.0-r0 su-exec=0.2-r0 gzip=1.9-r0 tar=1.32-r0 wget=1.20.3-r0 curl=7.61.1-r3 \
+ && echo "${TIMEZONE}" > /etc/TZ \
+ && ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+#   This is the release of Consul to pull in.
+ENV CONSUL_VERSION="1.1.0"
+#   This is the location of the releases.
+ENV HASHICORP_RELEASES="https://releases.hashicorp.com"
+#   Create a consul user and group first so the IDs get set the same way, even as
+#   the rest of this may change over time.
+RUN addgroup consul \
+ && adduser -S -G consul consul
+#   Set up certificates, base tools, and Consul.
+RUN set -eux \
+ && apk add ca-certificates=20191127-r2 curl=7.61.1-r3 dumb-init=1.2.1-r0 gnupg=2.2.19-r0 libcap=2.25-r1 openssl=1.0.2u-r0 su-exec=0.2-r0 --no-cache \
+ && gpg --keyserver keyserver.ubuntu.com --recv-keys 91A6E7F85D05C65630BEF18951852D87348FFC4C \
+ && mkdir -p /tmp/build \
+ && cd /tmp/build \
+ && apkArch="$( apk --print-arch ;)" \
+ && case "${apkArch}" in (aarch64) consulArch='arm64' ;;(armhf) consulArch='arm' ;;(x86) consulArch='386' ;;(x86_64) consulArch='amd64' ;;(*) echo "error: unsupported architecture: ${apkArch} (see ${HASHICORP_RELEASES}/consul/${CONSUL_VERSION}/)" >&2 \
+ && exit 1 ;; esac \
+ && wget ${HASHICORP_RELEASES}/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_linux_${consulArch}.zip \
+ && wget ${HASHICORP_RELEASES}/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS \
+ && wget ${HASHICORP_RELEASES}/consul/${CONSUL_VERSION}/consul_${CONSUL_VERSION}_SHA256SUMS.sig \
+ && gpg --batch --verify consul_${CONSUL_VERSION}_SHA256SUMS.sig consul_${CONSUL_VERSION}_SHA256SUMS \
+ && grep consul_${CONSUL_VERSION}_linux_${consulArch}.zip consul_${CONSUL_VERSION}_SHA256SUMS | sha256sum -c \
+ && unzip -d /bin consul_${CONSUL_VERSION}_linux_${consulArch}.zip \
+ && cd /tmp \
+ && rm -rf /tmp/build \
+ && apk del gnupg openssl \
+ && rm -rf /root/.gnupg \
+ && consul version
+#   The /consul/data dir is used by Consul to store state. The agent will be started
+#   with /consul/config as the configuration directory so you can add additional
+#   config files in that location.
+RUN mkdir -p /consul/data \
+ && mkdir -p /consul/config \
+ && chown -R consul:consul /consul
+#   Expose the consul data directory as a volume since there's mutable state in there.
+VOLUME /consul/data
+#   Server RPC is used for communication between Consul clients and servers for internal
+#   request forwarding.
+EXPOSE 8300/tcp
+#   Serf LAN and WAN (WAN is used only by Consul servers) are used for gossip between
+#   Consul agents. LAN is within the datacenter and WAN is between just the Consul
+#   servers in all datacenters.
+EXPOSE 8301/tcp 8301/udp 8302/tcp 8302/udp
+#   HTTP and DNS (both TCP and UDP) are the primary interfaces that applications
+#   use to interact with Consul.
+EXPOSE 8500/tcp 8600/tcp 8600/udp
+#   Consul doesn't need root privileges so we run it as the consul user from the
+#   entry point script. The entry point script also uses dumb-init as the top-level
+#   process to reap any zombie processes created by Consul sub-processes.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
+#   By default you'll get an insecure single-node development server that stores
+#   everything in RAM, exposes a web UI and HTTP endpoints, and bootstraps itself.
+#   Don't use this configuration for production.
+CMD ["agent", "-dev", "-client", "0.0.0.0"]
+RUN addgroup -S docker-user ; adduser -S -G docker-user docker-user
+USER docker-user
+# Please add your HEALTHCHECK here!!!

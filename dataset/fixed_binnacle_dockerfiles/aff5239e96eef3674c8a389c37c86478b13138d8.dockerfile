@@ -1,0 +1,81 @@
+#  #####################
+#  ## BASE (FIRST)
+#  ######################
+FROM quay.io/criticaljuncture/baseimage:16.04
+#  ######################
+#  ## RUBY
+#  ######################
+RUN apt-get update \
+ && (apt-get update ;apt-get install --no-install-recommends ruby2.2 ruby2.2-dev -y )
+#  ######################
+#  ## VARIOUS PACKAGES
+#  ######################
+RUN apt-get update \
+ && (apt-get update ;apt-get install --no-install-recommends libcurl4-openssl-dev libpcre3-dev git libmysqlclient-dev mysql-client secure-delete libqt4-dev libqtwebkit-dev -y ) \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/
+#   node js - packages are out of date
+RUN curl -sL https://deb.nodesource.com/setup_8.x | bash - \
+ && (apt-get update ;apt-get install --no-install-recommends nodejs -y ) \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/
+#   npm packages for testing
+RUN npm install jshint@2.13.6 -g
+RUN npm install coffeelint@2.1.0 -g
+#  #################
+#  ## TIMEZONE
+#  #################
+RUN ln -sf /usr/share/zoneinfo/US/Eastern /etc/localtime
+#  #################
+#  ## APP USER
+#  #################
+RUN adduser app -uid 1000 --system \
+ && usermod -a -G docker_env app
+#  ##############################
+#  ## GEMS & PASSENGER INSTALL
+#  ##############################
+RUN gem install bundler --version 2.4.12
+WORKDIR /tmp
+COPY Gemfile /tmp/Gemfile
+COPY Gemfile.lock /tmp/Gemfile.lock
+RUN bundle install --system --full-index \
+ && passenger-config install-standalone-runtime \
+ && passenger start --runtime-check-only
+#   docker cached layer build optimization:
+#   caches the latest security upgrade versions
+#   at the same time we're doing something else slow (changing the bundle)
+#   but something we do often enough that the final unattended upgrade at the
+#   end of this dockerfile isn't installing the entire world of security updates
+#   since we set up the dockerfile for the project
+RUN : \
+ && unattended-upgrade -d
+ENV PASSENGER_MIN_INSTANCES="1"
+ENV WEB_PORT="3000"
+#  #################
+#  ## SERVICES
+#  #################
+COPY docker/web/my_init.d /etc/my_init.d
+COPY docker/web/service /etc/service
+#  #################
+#  ## APP
+#  #################
+COPY --chown=1000:1000 . /home/app/
+WORKDIR /home/app
+RUN DB_ADAPTER=nulldb DEVISE_SECRET_KEY=XXX AWS_ACCESS_KEY_ID=XXX AWS_SECRET_ACCESS_KEY=XXX RAILS_ENV=production bundle exec rake assets:precompile \
+ && chown -R app /home/app/public
+#   CI setup
+RUN mkdir log/test/ \
+ && touch log/test/vcr.log \
+ && chown -R app log
+#  #################
+#  ## BASE (LAST)
+#  #################
+#   ensure all packages are as up to date as possible
+#   installs all updates since we last bundled
+RUN : \
+ && unattended-upgrade -d
+#   set terminal
+ENV TERM="linux"
+RUN groupadd --system docker-user ; useradd --system --gid docker-user docker-user
+USER docker-user
+# Please add your HEALTHCHECK here!!!

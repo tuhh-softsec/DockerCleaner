@@ -1,0 +1,82 @@
+FROM dianne
+USER root
+#   install base packages and MAVProxy dependencies
+RUN apt-get update \
+ && apt-get -y upgrade \
+ && apt-get install --no-install-recommends g++=4:12.2.0-3ubuntu1 gawk=1:5.2.1-2 python-pip python-matplotlib python-serial python-wxgtk2.8 python-scipy python-opencv python-numpy python-pyparsing ccache=4.7.4-1 realpath libopencv-dev=4.6.0+dfsg-11 -y -f
+#   use bash instead of sh
+RUN rm /bin/sh \
+ && ln -s /bin/bash /bin/sh
+#   install MAVProxy
+RUN pip install future==0.18.3 \
+ && apt-get install --no-install-recommends libxml2-dev=2.9.14+dfsg-1.1build2 libxslt1-dev=1.1.35-1 -y \
+ && pip2 install pymavlink catkin_pkg --upgrade \
+ && pip install MAVProxy==1.5.2
+#   install ROS Indigo
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
+ && apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net --recv-key 0xB01FA116 \
+ && apt-get update \
+ && apt-get install --no-install-recommends ros-indigo-ros-base python-rosinstall ros-indigo-octomap-msgs ros-indigo-joy ros-indigo-geodesy ros-indigo-octomap-ros ros-indigo-mavlink ros-indigo-control-toolbox ros-indigo-transmission-interface ros-indigo-joint-limits-interface unzip=6.0-27ubuntu1 -y \
+ && rosdep init
+#   source ROS stuff
+RUN echo "source /opt/ros/indigo/setup.bash" >> /home/dianne/.bashrc \
+ && echo "source /opt/ros_catkin_ws/devel/setup.bash" >> /home/dianne/.bashrc
+#   install Gazebo
+RUN sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list' \
+ && wget http://packages.osrfoundation.org/gazebo.key -O - | apt-key add - \
+ && apt-get update \
+ && apt-get remove .*gazebo.* '.*sdformat.*' '.*ignition-math.*' \
+ && apt-get update \
+ && apt-get install --no-install-recommends gazebo7 libgazebo7-dev drcsim7 xvfb=2:21.1.7-1ubuntu2 -y
+#   download Gazebo models
+RUN mkdir -p ~/.gazebo/models \
+ && git clone https://github.com/erlerobot/erle_gazebo_models \
+ && mv erle_gazebo_models/* ~/.gazebo/models
+WORKDIR /opt
+RUN mkdir -p ros_catkin_ws/src \
+ && chown -R dianne:dianne ros_catkin_ws \
+ && mkdir ardupilot \
+ && chown dianne:dianne ardupilot
+USER dianne
+#   download additional ROS packages
+RUN rosdep update \
+ && git clone https://github.com/erlerobot/ardupilot -b gazebo \
+ && source /opt/ros/indigo/setup.bash \
+ && echo "source /opt/ros/indigo/setup.bash" >> ~/.bashrc \
+ && cd ros_catkin_ws/src \
+ && catkin_init_workspace \
+ && cd .. \
+ && catkin_make \
+ && echo "source /opt/ros_catkin_ws/devel/setup.bash" >> ~/.bashrc \
+ && cd src \
+ && git clone https://github.com/erlerobot/ardupilot_sitl_gazebo_plugin \
+ && git clone https://github.com/tu-darmstadt-ros-pkg/hector_gazebo/ \
+ && git clone https://github.com/erlerobot/rotors_simulator -b sonar_plugin \
+ && git clone https://github.com/PX4/mav_comm.git \
+ && git clone https://github.com/ethz-asl/glog_catkin.git \
+ && git clone https://github.com/catkin/catkin_simple.git \
+ && git clone https://github.com/erlerobot/mavros.git \
+ && git clone https://github.com/ros-simulation/gazebo_ros_pkgs.git -b indigo-devel
+#   patch and build ROS packages from source
+RUN cd ros_catkin_ws \
+ && source devel/setup.bash \
+ && cd src/ardupilot_sitl_gazebo_plugin \
+ && git apply /home/dianne/be.iminds.iot.dianne.rl.environment.erlerover/ardupilot_sitl_gazebo_plugin.patch \
+ && cd ../.. \
+ && catkin_make --pkg mav_msgs mavros_msgs gazebo_msgs \
+ && source devel/setup.bash \
+ && catkin_make -j 4
+#   build APMrover
+RUN cd ardupilot/APMrover2 \
+ && make sitl -j 4
+#   Go back to dianne home
+WORKDIR ${home}
+USER dianne
+#   build and export Rover runtime
+RUN ./gradlew -x :be.iminds.iot.dianne.rl.environment.ale:assemble assemble export.runtime.agent.rover
+ENV DISPLAY=":99"
+#   set default target
+ENV TARGET="runtime.agent.rover"
+#   run
+ENTRYPOINT ["/home/dianne/be.iminds.iot.dianne.rl.environment.erlerover/entrypoint.sh"]
+# Please add your HEALTHCHECK here!!!

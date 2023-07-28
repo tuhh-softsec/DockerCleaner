@@ -1,0 +1,32 @@
+[
+  [
+    "4b410d24-1cbe-4430-a632-62c9a931cf1c",
+    "Curl or Wget Instead of Add",
+    "Use of Curl or Wget should be done instead of Add to fetch packages from remote URLs due to the use of Add being strongly discouraged",
+    "warning"
+  ],
+  [
+    "9bae49be-0aa3-4de5-bab2-4c3a069e40cd",
+    "Update Instruction Alone",
+    "Instruction 'RUN <package-manager> update' should always be followed by '<package-manager> install' in the same RUN statement",
+    "error"
+  ],
+  [
+    "3e2d3b2f-c22a-4df1-9cc6-a7a0aebb0c99",
+    "Passwords And Secrets - Generic Secret",
+    "Query to find passwords and secrets in infrastructure code.",
+    "error"
+  ],
+  [
+    "baee238e-1921-4801-9c3f-79ae1d7b2cbc",
+    "Passwords And Secrets - Generic Token",
+    "Query to find passwords and secrets in infrastructure code.",
+    "error"
+  ],
+  [
+    "487f4be7-3fd9-4506-a07a-eae252180c08",
+    "Passwords And Secrets - Generic Password",
+    "Query to find passwords and secrets in infrastructure code.",
+    "error"
+  ]
+]

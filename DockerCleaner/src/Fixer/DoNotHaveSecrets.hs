@@ -1,0 +1,63 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+module Fixer.DoNotHaveSecrets where
+
+import Data.Text (Text)
+import Helper
+import Language.Docker (Instruction (Comment, Env, Healthcheck), InstructionPos (instruction))
+import ShellCheck.AST (Token)
+import Dockerfile (Dockerfile)
+
+secretKeys :: [Text]
+secretKeys =
+  [ "AWS_ACCESS_KEY",
+    "AWS_SECRET_KEY",
+    "DOCKER_PASSWORD",
+    "GITHUB_TOKEN",
+    "GOOGLE_API_KEY",
+    "NPM_TOKEN",
+    "SLACK_TOKEN",
+    "POSTGRES_PASSWORD",
+    "CONSUMER_SECRET",
+
+    "SECRET_KEY", "MINIO_SECRET_KEY", "DD_SECRET_KEY", "CMBARTER_SECRET_KEY", "CMBARTER_REGISTRATION_SECRET", "DJANGO_SECRET_KEY", "SECURE_LINK_SECRET", "OAUTH2_SECRET", "SES_SECRET", "HPF_SECRET", "FLOOD_SECRET", "JENKINS_SLAVE_SECRET", "ILIOS_SECRET", "OTP_SECRET",
+    "ENV_GITHUB_TOKEN","LOG_TOKEN","BLACKFIRE_CLIENT_TOKEN","NRDP_TOKEN","NCPA_TOKEN","BOOTSTRAP_TOKEN","GITHUB_TOKEN","DEFAULT_MIXPANEL_TOKEN","TENANT_TOKEN","WECHATY_TOKEN","ENV_SLACK_TOKEN","MAPBOX_ACCESS_TOKEN","COGNITIVE_TEXT_SERVICE_TOKEN","COGNITIVE_VISION_SERVICE_TOKEN","COGNITIVE_SPEECH_SERVICE_TOKEN","COGNITIVE_TRANSLATION_SERVICE_TOKEN","PLEX_TOKEN","ORACLE_TOKEN", "AUTH_TOKEN_KEY",
+    "MYSQL_ALLOW_EMPTY_PASSWORD","OS_PASSWORD","POSTGRES_PASSWORD","SQ_JDBC_PASSWORD","DOLI_DB_PASSWORD","DOLI_DB_ROOT_PASSWORD","APEX_PUBLIC_USER_PASSWORD","APEX_LISTENER_PASSWORD","APEX_REST_PASSWORD","PUBLIC_PASSWORD","SYS_PASSWORD","KEYSTORE_PASSWORD","DB_PASSWORD","RSERVE_PASSWORD","SENSU_RABBITMQ_PASSWORD","SENSU_REDIS_PASSWORD","RESET_OS_PASSWORD","MYSQL_ROOT_PASSWORD","MYSQL_PASSWORD","MAGENTO_ADMIN_PASSWORD","OPENVPN_PASSWORD","TRANSMISSION_RPC_PASSWORD","ANCHORE_ADMIN_PASSWORD","REDIS_PASSWORD","VPN_PASSWORD","LDAP_AUTHENTIFICATION_PASSWORD","SMTP_PASSWORD","BANPROXY_PASSWORD","BANSSUSER_PASSWORD","MQ_ADMIN_PASSWORD","OJ_PASSWORD","CYGNUS_HDFS_PASSWORD","REAPER_JMX_AUTH_PASSWORD","REAPER_CASS_AUTH_PASSWORD","REAPER_DB_PASSWORD","REAPER_AUTH_PASSWORD","CHE_MYSQL_PASSWORD","JEEDOM_DB_PASSWORD","SHELL_ROOT_PASSWORD","SSH_USER_PASSWORD","KERBEROS_ADMIN_PASSWORD","PEGA_DIAGNOSTIC_PASSWORD","CASSANDRA_PASSWORD","SSH_PASSWORD","VNC_PASSWORD","MONGO_PASSWORD","ORACLE_PASSWORD","PDB_PASSWORD","APEX_PASSWORD","REPORTING_DB_PASSWORD","NOTEBOOK_PASSWORD","KS_PASSWORD","LINOTP_DB_PASSWORD","LINOTP_ADMIN_PASSWORD","KOPANO_SERVER_PASSWORD","MYSQL_MISP_PASSWORD","TRANSIFEX_PASSWORD","ADMIN_PASSWORD","AMAZEEIO_DB_PASSWORD","ROOT_PASSWORD","DOMOGIK_PASSWORD","MYSQL_MAIL_PASSWORD","MONIT_MAIL_PASSWORD","MONIT_PASSWORD","DD_ADMIN_PASSWORD","DD_CELERY_BROKER_PASSWORD","DD_DATABASE_PASSWORD","MARIADB_PASSWORD","MARIADB_ROOT_PASSWORD","CMK_PASSWORD","TETHYS_DB_PASSWORD","JAVA_KEYSTORE_PASSWORD","CMS_SMTP_PASSWORD","ANALYTICS_PIPELINE_OUTPUT_DATABASE_PASSWORD","MISP_GPG_PASSWORD","FORTIS_CASSANDRA_PASSWORD","CONCERTO_PASSWORD","INSTALL_OBJECTSERVER_PASSWORD","OBJECTSERVER_PASSWORD","SMADMIN_PASSWORD","INSTALL_TCR_DB_PASSWORD","TCR_CS_DB_PASSWORD","MONGODB_PASSWORD","OV_PASSWORD","ILIOS_LDAP_DIRECTORY_PASSWORD","WALLET_PASSWORD","WALLET_RPC_PASSWORD","CA_PASSWORD","WEBWORK_DB_PASSWORD","API_DB_PASSWORD","nSSH_USER_PASSWORD","JETTY_BROWSER_SSL_KEYSTORE_PASSWORD","JETTY_BACKCHANNEL_SSL_KEYSTORE_PASSWORD","SUPERVISOR_HTTP_PASSWORD","RPC_PASSWORD","SURVEIL_OS_PASSWORD","ST2_PASSWORD",
+    "PGPASSWORD", "ZS_DBPassword", "ZP_DBPassword", "ROOT_PASSWORD", "ROOTPASSWORD", "DBPassword", "HIVE_SITE_CONF_javax_jdo_option_ConnectionPassword"
+  ]
+
+isSecretKey :: Text -> Bool
+isSecretKey key = key `elem` secretKeys
+
+isEnv :: Instruction a -> Bool
+isEnv Env {} = True
+isEnv _ = False
+
+isEmptyEnv :: Instruction a -> Bool
+isEmptyEnv (Env []) = True
+isEmptyEnv _ = False
+
+anyEnv :: ((Text, Text) -> Bool) -> Instruction a -> Bool
+anyEnv f (Env pairs) = any f pairs
+anyEnv _ _ = False
+
+removeSecretsFromEnv :: Instruction a -> Instruction a
+removeSecretsFromEnv (Env stuff) = Env (filter (not . isSecretKey . fst) stuff)
+removeSecretsFromEnv a = a
+
+includesSecret :: InstructionPos a -> Bool
+includesSecret = anyInstruction (\x -> isEnv x && anyEnv (isSecretKey . fst) x)
+
+secretRemovedNote :: InstructionPos a
+secretRemovedNote = instructionToInstructionPos (Comment "A secret has been removed here. Please do not provide secrets from the Dockerfile as these will leak into the metadata of the resulting docker image. To provide secrets the --secret flag of the docker build command can be used (https://docs.docker.com/develop/develop-images/build_enhancements/#new-docker-build-secret-information).")
+
+fix :: Dockerfile -> Dockerfile
+fix (x : xs)
+  | includesSecret x =
+    if anyInstruction isEmptyEnv fixedInstruction
+      then secretRemovedNote : fix xs
+      else secretRemovedNote : fixedInstruction : fix xs
+  where
+    fixedInstruction = fmapInstruction removeSecretsFromEnv x
+fix (x : xs) = x : fix xs
+fix [] = []

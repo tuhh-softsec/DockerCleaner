@@ -1,0 +1,31 @@
+/* Silverpeas version to install */
+version = 'SILVERPEAS_VERSION'
+
+configurations {
+  all {
+    transitive = true
+    /* Only to load SNAPSHOT versions of Silverpeas */
+    resolutionStrategy {
+      cacheDynamicVersionsFor 0, 'seconds'
+      cacheChangingModulesFor 0, 'seconds'
+    }
+  }
+  silverpeas {
+    /* a Silverpeas module is made up of a war and optionally a configuration archive */
+    description = 'Silverpeas Modules'
+  }
+  library {
+    description = 'Specific Silverpeas or tiers libraries to include into Silverpeas (jar only)'
+  }
+}
+
+/* Dependencies to fetch for making Silverpeas */
+dependencies {
+  silverpeas "org.silverpeas:silverpeas-assembly:${project.version}"
+  silverpeas "org.silverpeas.looks.aurora:silverpeas-aurora-configuration:${project.version}"
+  silverpeas "org.silverpeas.looks.aurora:silverpeas-aurora-war:${project.version}@war"
+  library fileTree(dir: 'lib', include: ['*.jar'])
+}
+
+/* Log level for the Silverpeas installation */
+project.ext.logLevel = org.gradle.api.logging.LogLevel.INFO

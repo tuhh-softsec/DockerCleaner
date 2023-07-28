@@ -1,0 +1,19 @@
+version: '3'
+services:
+  echo-server:
+    image: "ealen/echo-server"
+    container_name: echo-server
+    hostname: echo-server
+    environment:
+     - PORT=80
+    ports:
+     - "80:80"
+  hitch:
+    image: "hitch:latest"
+    container_name: hitch
+    hostname: hitch
+    ports:
+      - "443:443"
+    command: --backend=[echo-server]:80 --alpn-protos=http/1.1 --write-proxy-v2=off
+    depends_on:
+      - "echo-server"

@@ -1,0 +1,105 @@
+#   **Description:**
+#
+#   Source: https://github.com/dlandon/zoneminder
+#
+#   Run zoneminder in a container.
+#
+#   Zoneminder GUI: http://IP:8080/zm or https://IP:8443/zm
+#
+#   zmNinja Notification Sever: https://IP:9000
+#
+#   **Running:**
+#
+#   ```sh
+#   docker run -d --name zoneminder \
+#   --net bridge \
+#    --privileged \
+#    -p 8080:80/tcp \
+#    -p 8443:443/tcp \
+#    -p 9000:9000/tcp \
+#    -e TZ="America/New_York" \
+#    -e SHMEM="50%" \
+#    -e PUID="99" \
+#    -e PGID="100" \
+#    -v ~/zm/config:/config \
+#    -v ~/zm/data:/var/cache/zoneminder \
+#    cdrage/zoneminder
+#   ```
+FROM dlandon/baseimage
+LABEL maintainer="dlandon"
+ENV SHMEM="50%" \
+    PUID="99" \
+    PGID="100"
+COPY init/ /etc/my_init.d/
+COPY defaults/ /root/
+COPY zmeventnotification/zmeventnotification.pl /usr/bin/
+COPY zmeventnotification/zmeventnotification.ini /root/
+RUN add-apt-repository -y ppa:iconnor/zoneminder \
+ && apt-get update \
+ && apt-get upgrade -y -o Dpkg::Options::="--force-confold" \
+ && apt-get dist-upgrade -y \
+ && apt-get install --no-install-recommends mariadb-server=1:10.11.2-1 -y \
+ && apt-get install --no-install-recommends wget=1.21.3-1ubuntu1 -y \
+ && apt-get install --no-install-recommends sudo=1.9.13p1-1ubuntu2 -y \
+ && apt-get install --no-install-recommends cakephp -y \
+ && apt-get install --no-install-recommends libav-tools -y \
+ && apt-get install --no-install-recommends ssmtp=2.64-11 mailutils=1:3.15-4 php-curl=2:8.1+92ubuntu1 net-tools=2.10-0.1ubuntu3 -y \
+ && apt-get install --no-install-recommends php-gd=2:8.1+92ubuntu1 zoneminder=1.30.4* -y \
+ && apt-get install --no-install-recommends libcrypt-mysql-perl=0.04-7build1 libyaml-perl=1.30-2 make=4.3-4.1build1 libjson-perl=4.10000-1 -y
+RUN rm /etc/mysql/my.cnf \
+ && cp /etc/mysql/mariadb.conf.d/50-server.cnf /etc/mysql/my.cnf \
+ && chmod 740 /etc/zm/zm.conf \
+ && chown root:www-data /etc/zm/zm.conf \
+ && adduser www-data video \
+ && a2enmod cgi \
+ && a2enconf zoneminder \
+ && a2enmod rewrite \
+ && perl -MCPAN -e "force install Net::WebSocket::Server" \
+ && perl -MCPAN -e "force install LWP::Protocol::https" \
+ && perl -MCPAN -e "force install Config::IniFiles"
+RUN cd /root \
+ && wget www.andywilcock.com/code/cambozola/cambozola-latest.tar.gz \
+ && tar xvf cambozola-latest.tar.gz \
+ && cp cambozola*/dist/cambozola.jar /usr/share/zoneminder/www \
+ && rm -rf cambozola*/ \
+ && rm -rf cambozola-latest.tar.gz \
+ && chmod 775 /usr/share/zoneminder/www/cambozola.jar \
+ && chown -R www-data:www-data /usr/share/zoneminder/ \
+ && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
+ && sed -i "s|^;date.timezone =.*|date.timezone = ${TZ}|" /etc/php/7.0/apache2/php.ini \
+ && sed -i "s|^start() {$|start() {\n sleep 15|" /etc/init.d/zoneminder \
+ && service mysql start \
+ && mysql -uroot < /usr/share/zoneminder/db/zm_create.sql \
+ && mysql -uroot -e "grant all on zm.* to 'zmuser'@localhost identified by 'zmpass';" \
+ && mysqladmin -uroot reload \
+ && mysql -sfu root < "mysql_secure_installation.sql" \
+ && rm mysql_secure_installation.sql \
+ && mysql -sfu root < "mysql_defaults.sql" \
+ && rm mysql_defaults.sql
+RUN service mysql restart \
+ && sleep 10 \
+ && service apache2 restart \
+ && service zoneminder start
+RUN systemd-tmpfiles --create zoneminder.conf \
+ && cp /root/default-ssl.conf /etc/apache2/sites-enabled/default-ssl.conf \
+ && mkdir /etc/apache2/ssl/ \
+ && chmod a+x /usr/bin/zmeventnotification.pl \
+ && mkdir /etc/private \
+ && chmod 777 /etc/private \
+ && chmod -R +x /etc/my_init.d/ \
+ && cp -p /etc/zm/zm.conf /root/zm.conf \
+ && sed -i "/'zmupdate.pl',/a\ \ \ \ 'zmeventnotification.pl'," /usr/bin/zmdc.pl \
+ && sed -i '/runCommand( "zmdc.pl start zmfilter.pl" );/a\ \ \ \ \ \ \ \ runCommand( "zmdc.pl start zmeventnotification.pl" )\;' /usr/bin/zmpkg.pl
+RUN rm /etc/apt/sources.list.d/iconnor-ubuntu-zoneminder-xenial.list \
+ && apt-get -y remove wget make \
+ && update-rc.d -f zoneminder remove \
+ && update-rc.d -f mysql remove \
+ && update-rc.d -f mysql-common remove \
+ && apt-get -y clean \
+ && apt-get -y autoremove \
+ && rm -rf /tmp/* /var/tmp/*
+VOLUME ["/config"]  ["/var/cache/zoneminder"]
+EXPOSE 80/tcp 443/tcp 9000/tcp
+RUN groupadd --system docker-user ; useradd --system --gid docker-user docker-user
+USER docker-user
+# Please add your HEALTHCHECK here!!!

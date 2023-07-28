@@ -1,0 +1,168 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.35.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           dockercleaner
+version:        0.1.0.0
+description:    Please see the README on GitHub at <example_user/dockercleaner#readme>
+homepage:       https://github.com/example_user/dockercleaner#readme
+bug-reports:    https://github.com/example_user/dockercleaner/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2022 Author name here
+license:        BSD3
+build-type:     Simple
+extra-source-files:
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/example_user/dockercleaner
+
+library
+  exposed-modules:
+      Command
+      Command.Addgroup
+      Command.Adduser
+      Command.Apk
+      Command.AptGet
+      Command.Gem
+      Command.Groupadd
+      Command.NoOp
+      Command.Npm
+      Command.Pip
+      Command.Useradd
+      Command.Wget
+      CommandParser
+      Dockerfile
+      DockerfileParser
+      FaultInjector.DoNotHaveSecrets
+      FaultInjector.DoNotUseAptGetUpdateAlone
+      FaultInjector.HaveAHealthcheck
+      FaultInjector.HaveAUser
+      FaultInjector.PinBaseImageVersion
+      FaultInjector.PinPackageManagerVersions
+      FaultInjector.UseCopyInsteadOfAdd
+      FaultInjector.UseNoInstallRecommends
+      FaultInjector.UseWgetInsteadOfAdd
+      Fixer.DoNotHaveSecrets
+      Fixer.DoNotUseAptGetUpdateAlone
+      Fixer.HaveAHealthcheck
+      Fixer.HaveAUser
+      Fixer.PinBaseImageVersion
+      Fixer.PinPackageManagerVersions
+      Fixer.UseCopyInsteadOfAdd
+      Fixer.UseNoInstallRecommends
+      Helper
+      Metadata
+      Options
+      OS
+      Package
+      PackageVersions
+      PrintShellAST
+      RandomHelper
+      Runner
+      Smells
+      ToJSON
+  other-modules:
+      Paths_dockercleaner
+  hs-source-dirs:
+      src
+  build-depends:
+      QuickCheck >=2.14.2 && <3
+    , ShellCheck >=0.7.2 && <0.8
+    , aeson >=1.5.6.0 && <2
+    , base >=4.7 && <5
+    , bytestring >=0.10.12.0 && <0.11
+    , cassava >=0.5.2.0 && <0.6
+    , containers >=0.6.5.1 && <0.7
+    , cryptonite >=0.29 && <1
+    , directory >=1.3.6.0 && <2
+    , hashable >=1.3.0.0 && <2
+    , language-docker >=10.4.2 && <11
+    , memory >=0.15.0 && <1
+    , mtl >=2.2 && <3
+    , optparse-applicative >=0.16.0.0 && <0.18
+    , parsec >=3.1.14.0 && <4
+    , process >=1.6.13.2 && <2
+    , random >=1.2.0 && <2
+    , split
+    , splitmix >=0.1.0.4 && <0.2
+    , text >=1.2.4.1 && <2
+    , vector >=0.12.3.1 && <0.13
+  default-language: Haskell2010
+
+executable dockercleaner
+  main-is: Main.hs
+  other-modules:
+      Paths_dockercleaner
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      QuickCheck >=2.14.2 && <3
+    , ShellCheck >=0.7.2 && <0.8
+    , aeson >=1.5.6.0 && <2
+    , base >=4.7 && <5
+    , bytestring >=0.10.12.0 && <0.11
+    , cassava >=0.5.2.0 && <0.6
+    , containers >=0.6.5.1 && <0.7
+    , cryptonite >=0.29 && <1
+    , directory >=1.3.6.0 && <2
+    , dockercleaner
+    , hashable >=1.3.0.0 && <2
+    , language-docker >=10.4.2 && <11
+    , memory >=0.15.0 && <1
+    , mtl >=2.2 && <3
+    , optparse-applicative >=0.16.0.0 && <0.18
+    , parsec >=3.1.14.0 && <4
+    , process >=1.6.13.2 && <2
+    , random >=1.2.0 && <2
+    , split
+    , splitmix >=0.1.0.4 && <0.2
+    , text >=1.2.4.1 && <2
+    , vector >=0.12.3.1 && <0.13
+  default-language: Haskell2010
+
+test-suite dockercleaner-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Command.ApkSpec
+      Command.AptGetSpec
+      Command.GemSpec
+      Command.Helper
+      Command.NpmSpec
+      Command.PipSpec
+      Command.WgetSpec
+      PrintShellASTIntegrationTest
+      Paths_dockercleaner
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      QuickCheck >=2.14.2 && <3
+    , ShellCheck >=0.7.2 && <0.8
+    , aeson >=1.5.6.0 && <2
+    , base >=4.7 && <5
+    , bytestring >=0.10.12.0 && <0.11
+    , cassava >=0.5.2.0 && <0.6
+    , containers >=0.6.5.1 && <0.7
+    , cryptonite >=0.29 && <1
+    , directory >=1.3.6.0 && <2
+    , dockercleaner
+    , hashable >=1.3.0.0 && <2
+    , language-docker >=10.4.2 && <11
+    , memory >=0.15.0 && <1
+    , mtl >=2.2 && <3
+    , optparse-applicative >=0.16.0.0 && <0.18
+    , parsec >=3.1.14.0 && <4
+    , process >=1.6.13.2 && <2
+    , random >=1.2.0 && <2
+    , split
+    , splitmix >=0.1.0.4 && <0.2
+    , text >=1.2.4.1 && <2
+    , vector >=0.12.3.1 && <0.13
+  default-language: Haskell2010

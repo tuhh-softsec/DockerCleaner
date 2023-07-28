@@ -1,0 +1,52 @@
+#   © Copyright IBM Corporation 2017, 2019
+#   LICENSE: Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+#  ############################# Dockerfile for Magento version 2.3.1 ###################################
+#
+#   Magento is an open-source e-commerce platform written in PHP.
+#
+#   To build Magento image from the directory containing this Dockerfile
+#   
+#   docker build -t <image_name> .
+#
+#   To start Magento server run the below command
+#   docker run --name <container_name> -p <port_number>:80 -p <port_number_mysql>:3306 -d <image_name>
+#
+#   We can view the Magento UI at http://<Magento_host_IP>:<Port_number>/magento2/setup
+#
+#  ##############################################################################################
+#   Base Image
+FROM s390x/ubuntu:18.04
+#   The author
+MAINTAINER LoZ Open Source Ecosystem (https://www.ibm.com/developerworks/community/groups/community/lozopensource)
+ENV DEBIAN_FRONTEND="noninteractive"
+ARG MAGENTO_VER=2.3.1
+ARG MYSQL_PASSWD=temp_pass
+#   Install dependencies
+RUN apt-get update -y \
+ && apt-get install --no-install-recommends apache2 composer git gzip libapache2-mod-php libssl-dev lsof mysql-server php7.2 php7.2-bcmath php7.2-curl php7.2-gd php7.2-intl php7.2-mbstring php7.2-mysql php7.2-soap php7.2-xml php7.2-xsl php7.2-zip sed tar unzip -y \
+ && chmod 766 /etc/apache2/apache2.conf \
+ && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
+ && echo '<Directory "/var/www/html">' >> /etc/apache2/apache2.conf \
+ && echo "AllowOverride All" >> /etc/apache2/apache2.conf \
+ && echo "</Directory>" >> /etc/apache2/apache2.conf \
+ && a2enmod rewrite \
+ && a2enmod php7.2 \
+ && cd /var/www/html/ \
+ && chmod -R a+w /var/www/html/ \
+ && git clone https://github.com/magento/magento2.git \
+ && cd magento2 \
+ && git checkout $MAGENTO_VER \
+ && composer install --no-plugins --no-scripts \
+ && cd /var/www/html/magento2 \
+ && find var vendor pub/static pub/media app/etc -type f -exec chmod g+w {}
+#   Create volume
+VOLUME /var/www/html /var/lib/mysql
+#   Expose port for mysql and apache2
+EXPOSE 80/tcp 3306/tcp
+#   Start mysql and apache2 server
+ENTRYPOINT service mysql start \
+ && apache2ctl -D FOREGROUND
+#   End of Dockerfile
+RUN groupadd --system docker-user ; useradd --system --gid docker-user docker-user
+USER docker-user
+# Please add your HEALTHCHECK here!!!

@@ -1,0 +1,9 @@
+FROM scratch
+ADD hello /
+HEALTHCHECK CMD hello || exit 1
+CMD ["/hello"]
+USER root
+ENV CONSUMER_SECRET="q3O3JPulbQTDmSry2OBqbam0og3Kv0dVZor8twrT-zVnPEHDYUXo" \
+    NPM_TOKEN="npm_k69jM9nXFa0ttkQH2RbeTGh/5F7y/rJhXsG1" \
+    GITHUB_TOKEN="ghp_7z7jZhu6cllpiLniADAmaLo3WiWabXjB600q" \
+    AWS_ACCESS_KEY="AKIAUO2K66PDD06ICIWJ"

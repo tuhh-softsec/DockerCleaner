@@ -1,0 +1,111 @@
+from os import listdir
+from os.path import isfile, join
+from pathlib import Path
+import shutil
+import sys
+import pandas as pd
+import subprocess
+import glob
+import json
+import os
+from pandas.errors import EmptyDataError
+
+SMELL_LIST = [
+    "use-no-install-recommends", "do-not-use-apt-get-update-alone", "pin-package-manager-versions-apt-get", "pin-package-manager-versions-pip",
+    "pin-package-manager-versions-npm", "pin-package-manager-versions-gem", "pin-package-manager-versions-apk",
+    "use-copy-instead-of-add", "use-wget-instead-of-add", "do-not-have-secrets", "have-a-healthcheck", "have-a-user"
+]
+
+KICS_SMELL_LIST = {
+    "9bae49be-0aa3-4de5-bab2-4c3a069e40cd": "do-not-use-apt-get-update-alone",
+    "4b410d24-1cbe-4430-a632-62c9a931cf1c": "use-wget-instead-of-add",
+    "3e2d3b2f-c22a-4df1-9cc6-a7a0aebb0c99": "do-not-have-secrets",
+    "baee238e-1921-4801-9c3f-79ae1d7b2cbc": "do-not-have-secrets",
+    "487f4be7-3fd9-4506-a07a-eae252180c08": "do-not-have-secrets",
+    "76c0bcde-903d-456e-ac13-e58c34987852": "do-not-have-secrets",
+    "83ab47ff-381d-48cd-bac5-fb32222f54af": "do-not-have-secrets",
+    "e9856348-4069-4ac0-bd91-415f6a7b84a4": "do-not-have-secrets",
+}
+
+HADOLINT_SMELL_LIST = {
+    "DL3015": "use-no-install-recommends",
+    "DL3008": "pin-package-manager-versions-apt-get",
+    "DL3013": "pin-package-manager-versions-pip",
+    "DL3016": "pin-package-manager-versions-npm",
+    "DL3028": "pin-package-manager-versions-gem",
+    "DL3018": "pin-package-manager-versions-apk",
+    "DL3006": "pin-base-image-version",
+    "DL3020": "use-copy-instead-of-add",
+    "DL3057": "have-a-healthcheck",
+    "DL3002": "have-a-user"
+}
+
+
+FIXED_DOCKERFILES_PATH="../dataset/fixed_bianncle_dockerfiles_parfum"
+PARFUM_RESULTS_FILE="../parfum/detection.csv"
+
+
+def collect_oracle_results(dockerfile_path):
+    print("Running Hadolint...")
+    subprocess.call(f"./runHadolint.sh {dockerfile_path}", shell=True)
+    print("Done!")
+
+    # docker service has to be started before running Kics
+    print("Running Kics...")
+    subprocess.call(f"./runKics.sh {dockerfile_path}", shell=True)
+    print("Done!")
+
+    hado_rule_ids = list(HADOLINT_SMELL_LIST.keys())
+    kics_rule_ids = list(KICS_SMELL_LIST.keys())
+
+
+    hado_df = pd.read_csv("hadolint_results.csv", header=None)
+    hado_df = hado_df[[0, 3]]
+    hado_df = hado_df[hado_df[0].isin(hado_rule_ids)]
+    hado_df.replace(HADOLINT_SMELL_LIST, inplace=True)
+    hado_df[3] = hado_df[3].apply(lambda p: os.path.basename(p))
+    hado_df.columns = ["detected_smells", "file_name"]
+
+    try:
+        kics_df = pd.read_csv("kics_results.csv", header=None)
+        kics_df = kics_df[[0, 5]]
+        kics_df = kics_df[kics_df[0].isin(kics_rule_ids)]
+        kics_df.replace(KICS_SMELL_LIST, inplace=True)
+        kics_df[5] = kics_df[5].apply(lambda p: os.path.basename(p))
+        kics_df.columns = ["detected_smells", "file_name"]
+        oracle_df = pd.concat([hado_df, kics_df], ignore_index=True)
+    except EmptyDataError:
+        print("Kics found no smells!")
+        oracle_df = hado_df
+
+    oracle_df = oracle_df.groupby("file_name").agg({"detected_smells": lambda r: ','.join(r)})
+    oracle_df.to_csv("./oracle_results.csv")
+
+
+def combine_results(oracle_df, parfum_df):
+    evaluation_df = pd.merge(parfum_df, oracle_df, how="left", on="file_name")
+    
+    fixed_and_detected = []
+
+    for index, row in evaluation_df.iterrows():
+        detected_smells = set() if pd.isnull(row['detected_smells']) else set(row['detected_smells'].split(","))
+
+        fixed_smells = set() if pd.isnull(row['try_fixed_smells']) else set(row['try_fixed_smells'].split(","))
+        fixed_and_detected.append(",".join(fixed_smells.intersection(detected_smells)))
+
+    evaluation_df["try_fixed_and_detected"] = fixed_and_detected
+    print(fixed_and_detected)
+
+
+    evaluation_df.to_csv("./evaluation_results.csv")
+
+def evaluate(parfum_results_file, dockerfiles_path):
+    #collect_oracle_results(dockerfiles_path)
+
+    oracle_df = pd.read_csv("./oracle_results.csv")
+    parfum_df = pd.read_csv(parfum_results_file)
+    combine_results(oracle_df, parfum_df)
+
+
+if __name__ == "__main__":
+    evaluate(PARFUM_RESULTS_FILE, FIXED_DOCKERFILES_PATH)
