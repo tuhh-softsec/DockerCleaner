@@ -55,7 +55,7 @@ Below briefly lists the pull requests we have submitted to the projects of twelv
 ## Repository Structure
 This repository is structured as follows:
 ```
-ICSME-replicationpackage
+This repository:
 ├── dataset: the datasets of Dockerfiles we used and we generated in our study
 ├── DockerCleaner: the tool that implemented our approaches to fix security smells for Dockerfiles
 ├── evaluation: the scripts we used for the evaluation in our study
