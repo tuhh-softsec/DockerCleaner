@@ -21,13 +21,13 @@ Docker is a widely adopted platform that enables developers to create lightweigh
 * Run the script `build_dockerfiles.py` to build the Dockerfiles for the assessment of buildability
 
 ### RQ2
-* Run the script `fix_smells_in_wild.py` to repair the security smells in the extened Dockerfile dataset with DockerCleaner
-* Run `ts-node lib/run-parfum.ts` to repair the security smells in the extened Dockerfile dataset with Parfum
+* Run the script `fix_smells_in_wild.py` to repair the security smells in the extended Dockerfile dataset with DockerCleaner
+* Run `ts-node lib/run-parfum.ts` to repair the security smells in the extended Dockerfile dataset with Parfum
 * Run the script `evaluate_results_in_wild.py` to evaluate the repair performance of DockerCleaner
 * Run the script `evaluate_results_in_wild_parfum.py` to evaluate the repair performance of Parfum
 
 ### RQ3
-Below briefly lists the pull requests we have submitted to the projects of twelve Docker official iamge. The detailed information of these pull requests are described in the file `RQ3 Evaluation Results.xlsx` under the `results` folder.
+Below is a brief list of the pull requests we have submitted to the twelve Docker official image projects. The detailed information of these pull requests is described in the file `RQ3 Evaluation Results.xlsx` under the `results` folder.
 
 * https://anonymous.4open.science/pr/6818
 * https://anonymous.4open.science/pr/C34D
@@ -56,11 +56,11 @@ Below briefly lists the pull requests we have submitted to the projects of twelv
 This repository is structured as follows:
 ```
 This repository:
-├── dataset: the datasets of Dockerfiles we used and we generated in our study
+├── dataset: the datasets of Dockerfiles we used and generated in our study
 ├── DockerCleaner: the tool that implemented our approaches to fix security smells for Dockerfiles
 ├── evaluation: the scripts we used for the evaluation in our study
 ├── parfum: the modified version of Parfum we used
-├── results: the results generated during our exeperiments, that is used to answer our research questions
+├── results: the results generated during our experiments that are used to answer our research questions
 ├── version_pinning: the scripts and data we used for the "Version Pinning" repair actions
 ├── Dockerfile Smell Types Selection.xlsx: the survey on the prevalence of Dockerfile smell types and the coverage of tools/materials for them
 └── README.md
