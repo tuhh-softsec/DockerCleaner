@@ -41,18 +41,18 @@ If you use DockerCleaner in academic context, please cite:
 ### RQ3
 Below is a brief list of the pull requests we have submitted to the twelve Docker official image projects. The detailed information of these pull requests is described in the file `RQ3 Evaluation Results.xlsx` under the `results` folder.
 
-* https://anonymous.4open.science/pr/6818
-* https://anonymous.4open.science/pr/C34D
-* https://anonymous.4open.science/pr/1CB4
-* https://anonymous.4open.science/pr/F769
-* https://anonymous.4open.science/pr/E3AE
-* https://anonymous.4open.science/pr/F66C
-* https://anonymous.4open.science/pr/DCAC
-* https://anonymous.4open.science/pr/18C1
-* https://anonymous.4open.science/pr/D4D1
-* https://anonymous.4open.science/pr/1B3E
-* https://anonymous.4open.science/pr/7B2C
-* https://anonymous.4open.science/pr/BED8
+* https://github.com/backdrop-ops/backdrop-docker/pull/61
+* https://github.com/couchbase/docker/pull/197
+* https://github.com/apache/couchdb-docker/pull/243
+* https://github.com/varnish/docker-hitch/pull/13
+* https://github.com/Kong/docker-kong/pull/644
+* https://github.com/docker-library/mysql/pull/965
+* https://github.com/zendtech/php-zendserver-docker/pull/28
+* https://github.com/rethinkdb/rethinkdb-dockerfiles/pull/64
+* https://github.com/Silverpeas/docker-silverpeas-prod/pull/5
+* https://github.com/apache/solr/pull/1575
+* https://github.com/tomitribe/docker-tomee/pull/77
+* https://github.com/varnish/docker-varnish/pull/63
 
 ## List of issues reported to KICS
 *All the reported issues have been acknowledged by KICS' developers to help improve this smell scanning tool.*
